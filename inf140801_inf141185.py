@@ -3,6 +3,10 @@ import scipy.io.wavfile
 from scipy.signal import kaiser, decimate
 import matplotlib.pyplot as plt
 from numpy import *
+import time
+import warnings
+
+warnings.simplefilter("ignore")
 
 def data(name):
     samp, signal = scipy.io.wavfile.read('trainall/'+name)
@@ -15,59 +19,71 @@ def data(name):
 def secToIndex(freq, t):
     return int(freq*t)
 
+def cutt(t, s, duration, w):
+    x = duration/15
+    results = []
+    s = (s-average(s))/std(s)
+    for i in range(15):
+        lIndex = secToIndex(w, i*x)
+        rIndex = secToIndex(w, i*x+x)
+        if(std(s[lIndex:rIndex])>0.75):
+            results.extend(s[lIndex:rIndex])
+    return results  
+    
 def program(name):
     t, s, w = data(name)
     time = len(s)/w
-    lMargin = secToIndex(w, 0.5)
-    rMargin = secToIndex(w, 2.0)
     
-    signal = s[lMargin:rMargin]
-    signalK = s[lMargin:rMargin]*kaiser(len(signal), 100)
+    signal = cutt(t, s, time, w)
+    signalK = signal*kaiser(len(signal), 100)
 
-    signal1 = abs(fft.fft(signal))     
-    #signal1 = [i/len(signal1)*w for i in signal1]
-    #signal1[0]=signal1[0]/2
     
-    signalK1 = abs(fft.fft(signalK))     
-    #signalK1 = [i/len(signalK1)*w for i in signalK1]
-    #signalK1[0]=signalK1[0]/2
+    signalK1 = abs(fft.fft(signalK))
     
-    #freqs = range(len(signal1))
-    #freqs = [i/len(signal1)*w for i in freqs]
+    
     freqsK = range(len(signalK1))
     freqsK = [i/len(signalK1)*w for i in freqsK]
-    #ax.plot(freqsK, signalK1)
-    #plt.show()
+    signalK1[:where(array(freqsK)>70)[0][0]] = 0
+
+    fig, ax = plt.subplots()
     hpik = copy(signalK1)
     for i in range(2, 6):
         d = decimate(signalK1, int(i))
         hpik[:len(d)] *= d
     if(freqsK[where(hpik==max(hpik))[0][0]] > 175):
-        print(name+' K', 'K'==name[-5], freqsK[where(hpik==max(hpik))[0][0]], time)
+        print(name+' K', 'K'==name[-5], freqsK[where(hpik==max(hpik))[0][0]])
         return 'K'==name[-5]
     else:
-        print(name+' M', 'M'==name[-5], freqsK[where(hpik==max(hpik))[0][0]], time)
+        print(name+' M', 'M'==name[-5], freqsK[where(hpik==max(hpik))[0][0]])
         return 'M'==name[-5]
     
     
 
 if __name__ == "__main__":
-    program('003_K.wav')
+    #program('037_K.wav')
     ile = 0
     for i in range(1,92):
         try:
             if i < 10:
+                t0 = time.time()
                 if program('00{}_K.wav'.format(i)):
+                    print("czas: ", time.time()-t0)
                     ile += 1     
             else:
+                t0 = time.time()
                 if program('0{}_K.wav'.format(i)):
+                    print("czas: ", time.time()-t0)
                     ile += 1   
         except:
             if i < 10:
+                t0 = time.time()
                 if program('00{}_M.wav'.format(i)):
+                    print("czas: ", time.time()-t0)
                     ile += 1   
             else:
+                t0 = time.time()
                 if program('0{}_M.wav'.format(i)):
+                    print("czas: ", time.time()-t0)
                     ile += 1
     print(ile/91)
     
